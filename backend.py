@@ -1,18 +1,50 @@
-import os 
-import certifi
+
+import os
+import socket
+import certifi #prevent the path issue of SSL certificate in Windows
+from pathlib import Path
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 os.environ["SSL_CERT_FILE"] = certifi.where()
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 
+
+def _print_langsmith_diagnostics() -> None:
+    endpoint = os.getenv("LANGSMITH_ENDPOINT") or os.getenv("LANGCHAIN_ENDPOINT") or "https://api.smith.langchain.com"
+    print("LangSmith diagnostics:")
+    print("  LANGSMITH_ENDPOINT:", endpoint)
+    print("  LANGCHAIN_ENDPOINT:", os.getenv("LANGCHAIN_ENDPOINT"))
+    print("  LANGSMITH_API_KEY loaded:", bool(os.getenv("LANGSMITH_API_KEY")))
+    print("  LANGSMITH_TRACING:", os.getenv("LANGSMITH_TRACING"))
+    print("  LANGSMITH_PROJECT:", os.getenv("LANGSMITH_PROJECT"))
+    try:
+        host = urlparse(endpoint).netloc
+        ip = socket.gethostbyname(host)
+        print("  DNS resolved:", host, ip)
+    except Exception as e:
+        print("  DNS error:", type(e).__name__, e)
+    try:
+        import requests
+
+        response = requests.head(endpoint, timeout=5)
+        print("  HTTP status:", response.status_code)
+    except Exception as e:
+        print("  HTTP request error:", type(e).__name__, e)
+
+
+if os.getenv("LANGSMITH_TRACING", "").lower() == "true":
+    _print_langsmith_diagnostics()
+
 from typing import TypedDict, Annotated
-import operator
+import operator  # we using the reducer concept to combine messages in the state graph 
 import uuid
 
 import psycopg
-from psycopg.rows import dict_row
+from psycopg.rows import dict_row  #PostgreSQL row factory to return results as dictionaries
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.postgres import PostgresSaver
@@ -41,7 +73,7 @@ def get_database_url():
 
     return database_url
 
-
+ # Load the GROQ API key from the environment variable
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY is missing. Please add it to your .env file.")

@@ -28,3 +28,6 @@ def tavily_search(query):
         results.append(f"{i}. **{title}**\n   {url}\n   {snippet}")
 
     return "\n\n".join(results)
+
+# only taking the content from the first 5 results to avoid wall-of-text
+#instead of returning the whole response from tavily or metadata, we are only returning the content from the first 5 results. This is to avoid wall-of-text and to make it easier for the user to read and understand the results.
